@@ -1,8 +1,14 @@
 // components/admin/result-override-form.tsx
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { overrideResultAction } from '@/actions/admin-actions'
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
+function getRecentCutoff() {
+  return new Date(Date.now() - SEVEN_DAYS_MS)
+}
 
 export interface AdminMatch {
   id: string
@@ -29,9 +35,12 @@ export function ResultOverrideForm({ matches }: { matches: AdminMatch[] }) {
     })
   }
 
-  const finishedAndRecent = matches
-    .filter((m) => new Date(m.kickoffUtc) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-    .sort((a, b) => new Date(b.kickoffUtc).getTime() - new Date(a.kickoffUtc).getTime())
+  const finishedAndRecent = useMemo(() => {
+    const cutoff = getRecentCutoff()
+    return matches
+      .filter((m) => new Date(m.kickoffUtc) > cutoff)
+      .sort((a, b) => new Date(b.kickoffUtc).getTime() - new Date(a.kickoffUtc).getTime())
+  }, [matches])
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
