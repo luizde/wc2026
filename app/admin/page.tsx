@@ -9,6 +9,15 @@ import { ResultOverrideForm } from '@/components/admin/result-override-form'
 
 export const dynamic = 'force-dynamic'
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-gray-800 px-4 py-5">
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
 export default async function AdminPage() {
   const session = await getSession()
   if (!session?.isAdmin) redirect('/leaderboard')
@@ -21,15 +30,6 @@ export default async function AdminPage() {
       .order('kickoff_utc', { ascending: false })
       .limit(50),
   ])
-
-  function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-      <div className="border-t border-gray-800 px-4 py-5">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">{title}</h2>
-        {children}
-      </div>
-    )
-  }
 
   return (
     <div className="max-w-2xl mx-auto">

@@ -30,7 +30,11 @@ export function UserManager({ users }: { users: AdminUser[] }) {
     if (!confirm('Remove this user? This cannot be undone.')) return
     startTransition(async () => {
       const result = await removeUserAction(userId)
-      if (!result.error) setList((l) => l.filter((u) => u.id !== userId))
+      if (!result.error) {
+        setList((l) => l.filter((u) => u.id !== userId))
+      } else {
+        setFeedback((f) => ({ ...f, [userId]: result.error! }))
+      }
     })
   }
 

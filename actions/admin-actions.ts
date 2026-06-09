@@ -31,12 +31,16 @@ export async function overrideResultAction(
 ): Promise<{ error?: string }> {
   try {
     await assertAdmin()
-    await db.from('matches').update({
+    if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0) {
+      return { error: 'Scores must be non-negative integers' }
+    }
+    const { error } = await db.from('matches').update({
       home_score: homeScore,
       away_score: awayScore,
       status: 'FINISHED',
       updated_at: new Date().toISOString(),
     }).eq('id', matchId)
+    if (error) throw new Error(error.message)
     await scorePredictions(matchId, { home: homeScore, away: awayScore })
     revalidatePath('/', 'layout')
     return {}
@@ -59,7 +63,8 @@ export async function generateInviteAction(): Promise<{ code?: string; error?: s
 export async function revokeInviteAction(codeId: string): Promise<{ error?: string }> {
   try {
     await assertAdmin()
-    await db.from('invite_codes').update({ is_active: false }).eq('id', codeId)
+    const { error } = await db.from('invite_codes').update({ is_active: false }).eq('id', codeId)
+    if (error) throw new Error(error.message)
     return {}
   } catch (e) {
     return { error: (e as Error).message }
@@ -72,9 +77,10 @@ export async function resetPasswordAction(
 ): Promise<{ error?: string }> {
   try {
     await assertAdmin()
-    if (!newPassword) return { error: 'Password cannot be empty' }
+    if (!newPassword || newPassword.length < 8) return { error: 'Password must be at least 8 characters' }
     const password_hash = await bcrypt.hash(newPassword, 10)
-    await db.from('users').update({ password_hash }).eq('id', userId)
+    const { error } = await db.from('users').update({ password_hash }).eq('id', userId)
+    if (error) throw new Error(error.message)
     return {}
   } catch (e) {
     return { error: (e as Error).message }

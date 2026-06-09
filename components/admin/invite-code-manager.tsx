@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { generateInviteAction, revokeInviteAction } from '@/actions/admin-actions'
 
 export interface InviteCode {
@@ -14,13 +15,14 @@ export function InviteCodeManager({ initialCodes }: { initialCodes: InviteCode[]
   const [codes, setCodes] = useState(initialCodes)
   const [isPending, startTransition] = useTransition()
   const [newCode, setNewCode] = useState<string | null>(null)
+  const router = useRouter()
 
   function handleGenerate() {
     startTransition(async () => {
       const result = await generateInviteAction()
       if (result.code) {
         setNewCode(result.code)
-        setCodes((prev) => [{ id: 'new', code: result.code!, isActive: true }, ...prev])
+        router.refresh()
       }
     })
   }
