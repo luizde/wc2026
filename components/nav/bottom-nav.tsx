@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { logoutAction } from '@/actions/auth-actions'
 
 interface NavItem {
   href: string
@@ -39,6 +40,15 @@ export function BottomNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           )
         })}
+        <form action={logoutAction} className="flex-1">
+          <button
+            type="submit"
+            className="w-full flex flex-col items-center py-3 gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-gray-300"
+          >
+            <span className="text-xl leading-none">🚪</span>
+            <span>Logout</span>
+          </button>
+        </form>
       </div>
     </nav>
   )
