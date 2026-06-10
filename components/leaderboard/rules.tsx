@@ -37,7 +37,7 @@ export function Rules() {
         </P>
         <P>
           <br />
-          There are no late entries. If you haven't predicted a match before its deadline, you get 0
+          There are no late entries. If you haven&apos;t predicted a match before its deadline, you get 0
           points for it.
         </P>
         <div className="mt-4 overflow-x-auto">
@@ -105,7 +105,7 @@ export function Rules() {
       <Section title="Seeing Other Players' Predictions">
         <P>
           You can only see your own predictions before a match deadline. Once the deadline passes,
-          everyone's predictions for that match become visible. This prevents copying.
+          everyone&apos;s predictions for that match become visible. This prevents copying.
         </P>
       </Section>
 
