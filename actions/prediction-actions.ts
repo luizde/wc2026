@@ -1,6 +1,7 @@
 // actions/prediction-actions.ts
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
@@ -54,6 +55,10 @@ export async function submitPredictionsAction(
       })),
       { onConflict: 'user_id,match_id' }
     )
+  }
+
+  if (valid.length > 0) {
+    revalidatePath('/predictions', 'layout')
   }
 
   return { saved: valid.length, skipped }
