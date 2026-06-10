@@ -14,6 +14,7 @@ export async function registerAction(input: RegisterInput): Promise<ActionResult
   if (!input.password) return { error: 'Password cannot be empty' }
 
   const username = input.username.toLowerCase()
+  if (/\s/.test(username)) return { error: 'Username cannot contain spaces' }
 
   const { data: invite } = await db
     .from('invite_codes')
