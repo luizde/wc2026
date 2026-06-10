@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { Rules } from '@/components/leaderboard/rules'
 import { getSession } from '@/lib/auth'
 import { syncIfStale } from '@/lib/sync'
 import { LeaderboardTable, LeaderboardRow } from '@/components/leaderboard/leaderboard-table'
@@ -58,6 +59,7 @@ export default async function LeaderboardPage() {
         <p className="text-gray-500 text-sm mt-1">{finishedCount} matches played</p>
       </div>
       <LeaderboardTable rows={rows} currentUsername={currentUser?.username ?? ''} />
+      <Rules />
     </div>
   )
 }
