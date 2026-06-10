@@ -13,6 +13,8 @@ interface ActionResult { error?: string }
 export async function registerAction(input: RegisterInput): Promise<ActionResult> {
   if (!input.password) return { error: 'Password cannot be empty' }
 
+  const username = input.username.toLowerCase()
+
   const { data: invite } = await db
     .from('invite_codes')
     .select('id')
@@ -25,7 +27,7 @@ export async function registerAction(input: RegisterInput): Promise<ActionResult
   const { data: existing } = await db
     .from('users')
     .select('id')
-    .eq('username', input.username)
+    .eq('username', username)
     .single()
 
   if (existing) return { error: 'Username already taken' }
@@ -34,7 +36,7 @@ export async function registerAction(input: RegisterInput): Promise<ActionResult
 
   const { data: user, error } = await db
     .from('users')
-    .insert({ username: input.username, password_hash })
+    .insert({ username, password_hash })
     .select('id, is_admin')
     .single()
 
@@ -48,7 +50,7 @@ export async function loginAction(input: LoginInput): Promise<ActionResult> {
   const { data: user } = await db
     .from('users')
     .select('id, password_hash, is_admin')
-    .eq('username', input.username)
+    .ilike('username', input.username)
     .single()
 
   if (!user) return { error: 'Invalid username or password' }
