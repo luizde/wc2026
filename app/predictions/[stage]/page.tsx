@@ -52,6 +52,13 @@ export default async function PredictionsPage({
   )
 
   const now = new Date()
+  const minKickoff = (matches ?? []).reduce<Date | null>((min, m) => {
+    const k = new Date(m.kickoff_utc)
+    return min === null || k < min ? k : min
+  }, null)
+  const phaseDeadline = minKickoff ? new Date(minKickoff.getTime() - 60 * 60 * 1000) : new Date(0)
+  const phaseIsLocked = now >= phaseDeadline
+
   const formMatches: MatchForForm[] = (matches ?? []).map((m) => ({
     id: m.id,
     homeTeam: m.home_team,
@@ -63,7 +70,7 @@ export default async function PredictionsPage({
     deadlineUtc: m.deadline_utc,
     existingHome: predMap.get(m.id)?.home ?? null,
     existingAway: predMap.get(m.id)?.away ?? null,
-    isLocked: now >= new Date(m.deadline_utc),
+    isLocked: phaseIsLocked,
   }))
 
   return (
