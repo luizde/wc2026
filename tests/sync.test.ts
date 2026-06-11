@@ -84,10 +84,10 @@ describe('syncIfStale', () => {
     const metaUpsertChain = makeMockChain({ data: null, error: null })
 
     mockFrom
-      .mockReturnValueOnce(metaChain as never)    // sync_meta select
-      .mockReturnValueOnce(existingChain as never) // matches select (existing)
-      .mockReturnValueOnce(upsertChain as never)  // matches upsert
-      .mockReturnValueOnce(metaUpsertChain as never) // sync_meta upsert
+      .mockReturnValueOnce(metaChain as never)
+      .mockReturnValueOnce(existingChain as never)
+      .mockReturnValueOnce(upsertChain as never)
+      .mockReturnValueOnce(metaUpsertChain as never)
 
     mockFetch.mockResolvedValue([{
       id: 1,
@@ -121,7 +121,7 @@ describe('syncIfStale', () => {
       .mockReturnValueOnce(metaChain as never)
       .mockReturnValueOnce(existingChain as never)
       .mockReturnValueOnce(upsertChain as never)
-      .mockReturnValueOnce(predsChain as never)   // scorePredictions select
+      .mockReturnValueOnce(predsChain as never)
       .mockReturnValueOnce(metaUpsertChain as never)
 
     mockFetch.mockResolvedValue([{
@@ -142,5 +142,34 @@ describe('syncIfStale', () => {
     expect(upsertCall.status).toBe('FINISHED')
     expect(upsertCall.home_score).toBe(2)
     expect(upsertCall.away_score).toBe(1)
+  })
+
+  it('skips upsert when match is already FINISHED in DB but API has no scores yet', async () => {
+    const staleTime = new Date(0).toISOString()
+    const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })
+    const existingChain = makeMockChain({ data: { id: 'match-uuid', status: 'FINISHED' }, error: null })
+    const metaUpsertChain = makeMockChain({ data: null, error: null })
+
+    mockFrom
+      .mockReturnValueOnce(metaChain as never)
+      .mockReturnValueOnce(existingChain as never)
+      .mockReturnValueOnce(metaUpsertChain as never)
+
+    mockFetch.mockResolvedValue([{
+      id: 1,
+      utcDate: '2026-06-11T19:00:00Z',
+      status: 'FINISHED',
+      stage: 'GROUP_STAGE',
+      group: 'GROUP_A',
+      matchday: 1,
+      homeTeam: { name: 'Mexico', crest: null },
+      awayTeam: { name: 'South Africa', crest: null },
+      score: { fullTime: { home: null, away: null } },
+    }])
+
+    await syncIfStale()
+
+    // The matches upsert should NOT have been called — skip preserves admin override
+    expect(existingChain.upsert).not.toHaveBeenCalled()
   })
 })

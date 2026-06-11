@@ -53,6 +53,12 @@ async function runSync(): Promise<void> {
       : match.status
 
     const wasFinished = existing?.status === 'FINISHED'
+
+    // If the match is already FINISHED in the DB (e.g. via admin override) but
+    // the API hasn't populated scores yet, skip the update entirely. Overwriting
+    // with null scores would undo the manual result and corrupt prediction scoring.
+    if (wasFinished && !scoresReady) continue
+
     const isNowFinished = effectiveStatus === 'FINISHED'
 
     const { data: upserted } = await db
