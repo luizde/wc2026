@@ -27,8 +27,8 @@ export default async function AdminPage() {
     db.from('invite_codes').select('id, code, is_active').order('created_at', { ascending: false }),
     db.from('matches')
       .select('id, home_team, away_team, kickoff_utc, home_score, away_score, status')
-      .order('kickoff_utc', { ascending: false })
-      .limit(50),
+      .gte('kickoff_utc', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .order('kickoff_utc', { ascending: false }),
   ])
 
   return (
