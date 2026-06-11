@@ -50,7 +50,7 @@ export async function loginAction(input: LoginInput): Promise<ActionResult> {
   const { data: user } = await db
     .from('users')
     .select('id, password_hash, is_admin')
-    .eq('username', input.username.toLowerCase())
+    .ilike('username', input.username)
     .single()
 
   if (!user) return { error: 'Invalid username or password' }

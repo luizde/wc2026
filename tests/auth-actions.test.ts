@@ -29,6 +29,7 @@ function makeChain(overrides: Record<string, unknown> = {}) {
   const chain: Record<string, ReturnType<typeof vi.fn>> = {
     select: vi.fn(),
     eq: vi.fn(),
+    ilike: vi.fn(),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
     insert: vi.fn(),
     ...overrides,
