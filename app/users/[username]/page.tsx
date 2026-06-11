@@ -27,7 +27,7 @@ export default async function UserHistoryPage({
   const { data: user } = await db
     .from('users')
     .select('id, username')
-    .eq('username', username)
+    .ilike('username', username)
     .single()
 
   if (!user) notFound()
