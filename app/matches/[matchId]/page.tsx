@@ -90,7 +90,7 @@ export default async function MatchDetailPage({
             <img src={match.home_crest} alt={match.home_team} className="w-10 h-10 object-contain" />
           )}
           <div className="text-2xl font-bold tabular-nums">
-            {match.status === 'FINISHED'
+            {match.status === 'FINISHED' && match.home_score !== null && match.away_score !== null
               ? `${match.home_score} – ${match.away_score}`
               : '– : –'}
           </div>

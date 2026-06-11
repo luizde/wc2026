@@ -41,8 +41,19 @@ async function runSync(): Promise<void> {
       .eq('external_id', match.id)
       .single()
 
+    const homeScore = match.score.fullTime.home
+    const awayScore = match.score.fullTime.away
+    const scoresReady = homeScore !== null && awayScore !== null
+
+    // football-data.org marks matches FINISHED before populating scores.
+    // Hold the status at IN_PLAY until scores are available so the UI
+    // never renders "null – null".
+    const effectiveStatus = match.status === 'FINISHED' && !scoresReady
+      ? 'IN_PLAY'
+      : match.status
+
     const wasFinished = existing?.status === 'FINISHED'
-    const isNowFinished = match.status === 'FINISHED'
+    const isNowFinished = effectiveStatus === 'FINISHED'
 
     const { data: upserted } = await db
       .from('matches')
@@ -58,9 +69,9 @@ async function runSync(): Promise<void> {
           matchday: match.matchday ?? null,
           kickoff_utc: kickoffUtc.toISOString(),
           deadline_utc: deadlineUtc.toISOString(),
-          status: match.status,
-          home_score: match.score.fullTime.home,
-          away_score: match.score.fullTime.away,
+          status: effectiveStatus,
+          home_score: homeScore,
+          away_score: awayScore,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'external_id' }
@@ -68,11 +79,10 @@ async function runSync(): Promise<void> {
       .select('id')
       .single()
 
-    if (!wasFinished && isNowFinished && upserted &&
-        match.score.fullTime.home !== null && match.score.fullTime.away !== null) {
+    if (!wasFinished && isNowFinished && upserted && scoresReady) {
       await scorePredictions(upserted.id, {
-        home: match.score.fullTime.home,
-        away: match.score.fullTime.away,
+        home: homeScore!,
+        away: awayScore!,
       })
     }
   }
