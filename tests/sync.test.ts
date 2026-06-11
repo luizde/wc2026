@@ -75,4 +75,72 @@ describe('syncIfStale', () => {
 
     await expect(syncIfStale()).resolves.not.toThrow()
   })
+
+  it('stores IN_PLAY when API says FINISHED but scores are null', async () => {
+    const staleTime = new Date(0).toISOString()
+    const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })
+    const existingChain = makeMockChain({ data: null, error: null })
+    const upsertChain = makeMockChain({ data: { id: 'match-uuid' }, error: null })
+    const metaUpsertChain = makeMockChain({ data: null, error: null })
+
+    mockFrom
+      .mockReturnValueOnce(metaChain as never)    // sync_meta select
+      .mockReturnValueOnce(existingChain as never) // matches select (existing)
+      .mockReturnValueOnce(upsertChain as never)  // matches upsert
+      .mockReturnValueOnce(metaUpsertChain as never) // sync_meta upsert
+
+    mockFetch.mockResolvedValue([{
+      id: 1,
+      utcDate: '2026-06-11T19:00:00Z',
+      status: 'FINISHED',
+      stage: 'GROUP_STAGE',
+      group: 'GROUP_A',
+      matchday: 1,
+      homeTeam: { name: 'Mexico', crest: null },
+      awayTeam: { name: 'South Africa', crest: null },
+      score: { fullTime: { home: null, away: null } },
+    }])
+
+    await syncIfStale()
+
+    const upsertCall = upsertChain.upsert.mock.calls[0][0]
+    expect(upsertCall.status).toBe('IN_PLAY')
+    expect(upsertCall.home_score).toBeNull()
+    expect(upsertCall.away_score).toBeNull()
+  })
+
+  it('stores FINISHED and scores predictions when API provides scores', async () => {
+    const staleTime = new Date(0).toISOString()
+    const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })
+    const existingChain = makeMockChain({ data: { id: 'match-uuid', status: 'IN_PLAY' }, error: null })
+    const upsertChain = makeMockChain({ data: { id: 'match-uuid' }, error: null })
+    const predsChain = makeMockChain({ data: [], error: null })
+    const metaUpsertChain = makeMockChain({ data: null, error: null })
+
+    mockFrom
+      .mockReturnValueOnce(metaChain as never)
+      .mockReturnValueOnce(existingChain as never)
+      .mockReturnValueOnce(upsertChain as never)
+      .mockReturnValueOnce(predsChain as never)   // scorePredictions select
+      .mockReturnValueOnce(metaUpsertChain as never)
+
+    mockFetch.mockResolvedValue([{
+      id: 1,
+      utcDate: '2026-06-11T19:00:00Z',
+      status: 'FINISHED',
+      stage: 'GROUP_STAGE',
+      group: 'GROUP_A',
+      matchday: 1,
+      homeTeam: { name: 'Mexico', crest: null },
+      awayTeam: { name: 'South Africa', crest: null },
+      score: { fullTime: { home: 2, away: 1 } },
+    }])
+
+    await syncIfStale()
+
+    const upsertCall = upsertChain.upsert.mock.calls[0][0]
+    expect(upsertCall.status).toBe('FINISHED')
+    expect(upsertCall.home_score).toBe(2)
+    expect(upsertCall.away_score).toBe(1)
+  })
 })

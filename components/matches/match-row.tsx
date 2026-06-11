@@ -32,7 +32,7 @@ function formatKickoff(utc: string): string {
 }
 
 export function MatchRow({ match }: { match: MatchRowData }) {
-  const isFinished = match.status === 'FINISHED'
+  const isFinished = match.status === 'FINISHED' && match.homeScore !== null && match.awayScore !== null
   const isLive = match.status === 'IN_PLAY' || match.status === 'LIVE' || match.status === 'PAUSED'
 
   return (
