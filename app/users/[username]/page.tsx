@@ -39,7 +39,7 @@ export default async function UserHistoryPage({
 
   const { data: matches } = await db
     .from('matches')
-    .select('id, home_team, away_team, home_crest, away_crest, stage, group_name, kickoff_utc, deadline_utc, status, home_score, away_score')
+    .select('id, home_team, away_team, home_crest, away_crest, stage, group_name, kickoff_utc, status, home_score, away_score')
     .order('kickoff_utc', { ascending: true })
 
   const predMap = new Map(
@@ -70,6 +70,18 @@ export default async function UserHistoryPage({
 
   const now = new Date()
 
+  // Phase deadline = earliest kickoff in the stage - 1 hour
+  const minKickoffPerStage = new Map<string, Date>()
+  for (const m of matches ?? []) {
+    const k = new Date(m.kickoff_utc)
+    const existing = minKickoffPerStage.get(m.stage)
+    if (!existing || k < existing) minKickoffPerStage.set(m.stage, k)
+  }
+  const phaseDeadlines = new Map<string, Date>()
+  for (const [stage, minKickoff] of minKickoffPerStage) {
+    phaseDeadlines.set(stage, new Date(minKickoff.getTime() - 60 * 60 * 1000))
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="px-4 py-4 border-b border-gray-800">
@@ -97,7 +109,7 @@ export default async function UserHistoryPage({
                 )}
                 {groupMatches.map((match) => {
                   const pred = predMap.get(match.id)
-                  const isPast = now >= new Date(match.deadline_utc)
+                  const isPast = now >= (phaseDeadlines.get(match.stage) ?? new Date(0))
                   const showPred = isPast && pred
 
                   let ptsBadge: React.ReactNode = null

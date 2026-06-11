@@ -38,9 +38,19 @@ export default async function MatchDetailPage({
 
   if (!match) notFound()
 
-  const isPastDeadline = new Date() >= new Date(match.deadline_utc)
+  const { data: stageKickoffs } = await db
+    .from('matches')
+    .select('kickoff_utc')
+    .eq('stage', match.stage)
 
-  // Only show all predictions after deadline
+  const minKickoff = (stageKickoffs ?? []).reduce<Date | null>((min, m) => {
+    const k = new Date(m.kickoff_utc)
+    return min === null || k < min ? k : min
+  }, null)
+  const phaseDeadline = minKickoff ? new Date(minKickoff.getTime() - 60 * 60 * 1000) : new Date(0)
+  const isPastDeadline = new Date() >= phaseDeadline
+
+  // Only show all predictions after phase locks
   const { data: allPredictions } = isPastDeadline
     ? await db
         .from('predictions')
