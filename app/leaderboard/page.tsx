@@ -18,6 +18,7 @@ export default async function LeaderboardPage() {
   const { data: predictions } = await db
     .from('predictions')
     .select('user_id, points')
+    .range(0, 9999)
 
   const { data: finishedMatches } = await db
     .from('matches')
