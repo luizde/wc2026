@@ -70,6 +70,7 @@ export async function submitPredictionsAction(
         match_id: v.matchId,
         home_score: v.homeScore,
         away_score: v.awayScore,
+        points: null,
         updated_at: now.toISOString(),
       })),
       { onConflict: 'user_id,match_id' }
