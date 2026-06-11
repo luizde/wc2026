@@ -24,20 +24,39 @@ export async function submitPredictionsAction(
   if (!session) return { saved: 0, skipped: [], error: 'Not authenticated' }
 
   const matchIds = inputs.map((i) => i.matchId)
-  const { data: matches } = await db
+
+  const { data: submittedMatches } = await db
     .from('matches')
-    .select('id, deadline_utc')
+    .select('id, stage')
     .in('id', matchIds)
 
-  const now = new Date()
-  const deadlineMap = new Map((matches ?? []).map((m) => [m.id, new Date(m.deadline_utc)]))
+  const stages = [...new Set((submittedMatches ?? []).map((m) => m.stage))]
 
+  const { data: stageMatches } = stages.length
+    ? await db.from('matches').select('stage, kickoff_utc').in('stage', stages)
+    : { data: [] }
+
+  // Phase deadline = earliest kickoff in the stage - 1 hour
+  const minKickoffPerStage = new Map<string, Date>()
+  for (const m of stageMatches ?? []) {
+    const kickoff = new Date(m.kickoff_utc)
+    const existing = minKickoffPerStage.get(m.stage)
+    if (!existing || kickoff < existing) minKickoffPerStage.set(m.stage, kickoff)
+  }
+  const phaseDeadlines = new Map<string, Date>()
+  for (const [stage, minKickoff] of minKickoffPerStage) {
+    phaseDeadlines.set(stage, new Date(minKickoff.getTime() - 60 * 60 * 1000))
+  }
+
+  const stageForMatch = new Map((submittedMatches ?? []).map((m) => [m.id, m.stage]))
+  const now = new Date()
   const valid: PredictionInput[] = []
   const skipped: string[] = []
 
   for (const input of inputs) {
-    const deadline = deadlineMap.get(input.matchId)
-    if (!deadline || now >= deadline) {
+    const stage = stageForMatch.get(input.matchId)
+    const phaseDeadline = stage ? phaseDeadlines.get(stage) : undefined
+    if (!phaseDeadline || now >= phaseDeadline) {
       skipped.push(input.matchId)
     } else {
       valid.push(input)

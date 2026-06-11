@@ -9,6 +9,9 @@ vi.mock('@/lib/db', () => {
   const mockFrom = vi.fn()
   return { db: { from: mockFrom } }
 })
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}))
 vi.mock('next/headers', () => ({
   cookies: vi.fn().mockResolvedValue({
     get: vi.fn().mockReturnValue(undefined),
@@ -27,8 +30,23 @@ import { getSession } from '@/lib/auth'
 const mockFrom = vi.mocked(db.from)
 const mockGetSession = vi.mocked(getSession)
 
-const FUTURE = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-const PAST = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+const FUTURE_KICKOFF = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+const PAST_KICKOFF = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+
+function mockTwoQueries(
+  stageData: { id: string; stage: string }[],
+  kickoffData: { stage: string; kickoff_utc: string }[]
+) {
+  const stageChain = {
+    select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockResolvedValue({ data: stageData, error: null }),
+  }
+  const kickoffChain = {
+    select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockResolvedValue({ data: kickoffData, error: null }),
+  }
+  mockFrom.mockReturnValueOnce(stageChain as never).mockReturnValueOnce(kickoffChain as never)
+}
 
 describe('submitPredictionsAction', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -41,22 +59,35 @@ describe('submitPredictionsAction', () => {
     expect(result.error).toMatch(/not authenticated/i)
   })
 
-  it('rejects predictions for matches past their deadline', async () => {
+  it('rejects predictions when phase is locked (first match kicked off > 1h ago)', async () => {
     mockGetSession.mockResolvedValue({ userId: 'user-1', isAdmin: false })
-    const chain = {
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({
-        data: [{ id: 'match-1', deadline_utc: PAST }],
-        error: null,
-      }),
-      upsert: vi.fn().mockResolvedValue({ error: null }),
-    }
-    mockFrom.mockReturnValue(chain as never)
+    mockTwoQueries(
+      [{ id: 'match-1', stage: 'GROUP_STAGE' }],
+      [{ stage: 'GROUP_STAGE', kickoff_utc: PAST_KICKOFF }]
+    )
 
     const result = await submitPredictionsAction([
       { matchId: 'match-1', homeScore: 1, awayScore: 0 },
     ])
     expect(result.skipped).toContain('match-1')
     expect(result.saved).toBe(0)
+  })
+
+  it('accepts predictions when phase is not yet locked', async () => {
+    mockGetSession.mockResolvedValue({ userId: 'user-1', isAdmin: false })
+    mockTwoQueries(
+      [{ id: 'match-1', stage: 'GROUP_STAGE' }],
+      [{ stage: 'GROUP_STAGE', kickoff_utc: FUTURE_KICKOFF }]
+    )
+    const upsertChain = {
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    }
+    mockFrom.mockReturnValueOnce(upsertChain as never)
+
+    const result = await submitPredictionsAction([
+      { matchId: 'match-1', homeScore: 1, awayScore: 0 },
+    ])
+    expect(result.saved).toBe(1)
+    expect(result.skipped).toHaveLength(0)
   })
 })
