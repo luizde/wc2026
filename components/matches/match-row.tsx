@@ -81,14 +81,14 @@ export function MatchRow({
 
       {prediction !== undefined && (
         prediction !== null ? (
-          <div className="px-4 py-1 flex items-center gap-2 text-xs text-gray-500">
+          <div className="py-1 flex items-center justify-center gap-2 text-xs text-gray-500">
             <span>My pick: {prediction.homeScore} – {prediction.awayScore}</span>
             {isFinished && prediction.points === 3 && <span className="text-green-400">🎯 +3</span>}
             {isFinished && prediction.points === 1 && <span className="text-yellow-400">✅ +1</span>}
             {isFinished && prediction.points === 0 && <span className="text-red-400">❌ 0</span>}
           </div>
         ) : isFinished ? (
-          <div className="px-4 py-1 text-xs text-gray-700">No pick</div>
+          <div className="py-1 text-xs text-gray-700 text-center">No pick</div>
         ) : null
       )}
     </div>
