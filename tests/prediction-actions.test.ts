@@ -90,6 +90,25 @@ describe('submitPredictionsAction', () => {
     expect(result.saved).toBe(0)
   })
 
+  it('locks a later match once the stage\'s earliest match has passed its deadline', async () => {
+    // Submitting a future match, but an earlier match in the same stage already
+    // kicked off > 1h ago — the phase deadline is governed by the earliest match.
+    mockGetSession.mockResolvedValue({ userId: 'user-1', isAdmin: false })
+    mockTwoQueries(
+      [{ id: 'match-late', stage: 'GROUP_STAGE', home_team: 'Mexico', away_team: 'France' }],
+      [
+        { stage: 'GROUP_STAGE', kickoff_utc: PAST_KICKOFF },
+        { stage: 'GROUP_STAGE', kickoff_utc: FUTURE_KICKOFF },
+      ]
+    )
+
+    const result = await submitPredictionsAction([
+      { matchId: 'match-late', homeScore: 1, awayScore: 0 },
+    ])
+    expect(result.skipped).toContain('match-late')
+    expect(result.saved).toBe(0)
+  })
+
   it('accepts predictions when phase is not yet locked', async () => {
     mockGetSession.mockResolvedValue({ userId: 'user-1', isAdmin: false })
     mockTwoQueries(

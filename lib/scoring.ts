@@ -27,3 +27,15 @@ export function computeDeadline(kickoffUtc: Date): Date {
   const twoHoursBefore = new Date(kickoffUtc.getTime() - 2 * 60 * 60 * 1000)
   return noonCT < twoHoursBefore ? noonCT : twoHoursBefore
 }
+
+// A stage locks 1 hour before its earliest kickoff. Pass every kickoff in the
+// stage (including TBD matches, which still have scheduled times) so the lock
+// instant doesn't drift when the earliest match resolves last. With no
+// kickoffs the result is the epoch, i.e. effectively locked.
+export function computePhaseDeadline(kickoffsUtc: string[]): Date {
+  const min = kickoffsUtc.reduce<Date | null>((m, k) => {
+    const d = new Date(k)
+    return m === null || d < m ? d : m
+  }, null)
+  return min ? new Date(min.getTime() - 60 * 60 * 1000) : new Date(0)
+}

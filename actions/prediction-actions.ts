@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { computePhaseDeadline } from '@/lib/scoring'
 
 export interface PredictionInput {
   matchId: string
@@ -36,16 +37,15 @@ export async function submitPredictionsAction(
     ? await db.from('matches').select('stage, kickoff_utc').in('stage', stages)
     : { data: [] }
 
-  // Phase deadline = earliest kickoff in the stage - 1 hour
-  const minKickoffPerStage = new Map<string, Date>()
+  // Phase deadline = 1 hour before the earliest kickoff in the stage.
+  const kickoffsByStage = new Map<string, string[]>()
   for (const m of stageMatches ?? []) {
-    const kickoff = new Date(m.kickoff_utc)
-    const existing = minKickoffPerStage.get(m.stage)
-    if (!existing || kickoff < existing) minKickoffPerStage.set(m.stage, kickoff)
+    if (!kickoffsByStage.has(m.stage)) kickoffsByStage.set(m.stage, [])
+    kickoffsByStage.get(m.stage)!.push(m.kickoff_utc)
   }
   const phaseDeadlines = new Map<string, Date>()
-  for (const [stage, minKickoff] of minKickoffPerStage) {
-    phaseDeadlines.set(stage, new Date(minKickoff.getTime() - 60 * 60 * 1000))
+  for (const [stage, kickoffs] of kickoffsByStage) {
+    phaseDeadlines.set(stage, computePhaseDeadline(kickoffs))
   }
 
   const matchById = new Map((submittedMatches ?? []).map((m) => [m.id, m]))
