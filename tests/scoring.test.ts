@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computePoints, computeDeadline } from '@/lib/scoring'
+import { computePoints, computeDeadline, computePhaseDeadline } from '@/lib/scoring'
 
 describe('computePoints', () => {
   it('returns 3 for exact score', () => {
@@ -54,5 +54,28 @@ describe('computeDeadline', () => {
     const deadline = computeDeadline(kickoff)
     // Noon CT = 17:00 UTC; 2h before = 18:00 UTC → min is 17:00
     expect(deadline.toISOString()).toBe('2026-06-11T17:00:00.000Z')
+  })
+})
+
+describe('computePhaseDeadline', () => {
+  it('returns 1 hour before the earliest kickoff in the stage', () => {
+    const deadline = computePhaseDeadline([
+      '2026-06-30T01:00:00Z',
+      '2026-06-28T19:00:00Z', // earliest
+      '2026-06-29T17:00:00Z',
+    ])
+    expect(deadline.toISOString()).toBe('2026-06-28T18:00:00.000Z')
+  })
+
+  it('is independent of array order', () => {
+    const deadline = computePhaseDeadline([
+      '2026-06-28T19:00:00Z',
+      '2026-06-30T01:00:00Z',
+    ])
+    expect(deadline.toISOString()).toBe('2026-06-28T18:00:00.000Z')
+  })
+
+  it('returns the epoch (effectively locked) when there are no kickoffs', () => {
+    expect(computePhaseDeadline([]).getTime()).toBe(0)
   })
 })

@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { syncIfStale } from '@/lib/sync'
 import { MatchComparison, UserPrediction } from '@/components/matches/match-detail'
+import { displayTeamName } from '@/lib/teams'
+import { computePhaseDeadline } from '@/lib/scoring'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,11 +45,7 @@ export default async function MatchDetailPage({
     .select('kickoff_utc')
     .eq('stage', match.stage)
 
-  const minKickoff = (stageKickoffs ?? []).reduce<Date | null>((min, m) => {
-    const k = new Date(m.kickoff_utc)
-    return min === null || k < min ? k : min
-  }, null)
-  const phaseDeadline = minKickoff ? new Date(minKickoff.getTime() - 60 * 60 * 1000) : new Date(0)
+  const phaseDeadline = computePhaseDeadline((stageKickoffs ?? []).map((m) => m.kickoff_utc))
   const isPastDeadline = new Date() >= phaseDeadline
 
   // Only show all predictions after phase locks
@@ -109,8 +107,8 @@ export default async function MatchDetailPage({
           )}
         </div>
         <div className="flex justify-between text-sm font-medium px-8">
-          <span>{match.home_team}</span>
-          <span>{match.away_team}</span>
+          <span>{displayTeamName(match.home_team)}</span>
+          <span>{displayTeamName(match.away_team)}</span>
         </div>
         <p className="text-xs text-gray-500 mt-2">{formatKickoff(match.kickoff_utc)}</p>
       </div>

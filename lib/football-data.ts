@@ -1,5 +1,6 @@
 export interface FDTeam {
-  name: string
+  // null until the knockout matchup is resolved
+  name: string | null
   crest: string | null
 }
 

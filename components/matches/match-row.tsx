@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { displayTeamName } from '@/lib/teams'
 
 export interface PredictionData {
   homeScore: number
@@ -53,8 +54,8 @@ export function MatchRow({
         href={`/matches/${match.id}`}
         className="flex items-center gap-2 px-4 py-3 hover:bg-gray-900/50 transition-colors"
       >
-        <Flag crest={match.homeCrest} name={match.homeTeam} />
-        <span className="flex-1 text-sm font-medium truncate">{match.homeTeam}</span>
+        <Flag crest={match.homeCrest} name={displayTeamName(match.homeTeam)} />
+        <span className="flex-1 text-sm font-medium truncate">{displayTeamName(match.homeTeam)}</span>
 
         <div className="flex flex-col items-center min-w-[64px]">
           {isFinished ? (
@@ -75,8 +76,8 @@ export function MatchRow({
           </span>
         </div>
 
-        <span className="flex-1 text-sm font-medium truncate text-right">{match.awayTeam}</span>
-        <Flag crest={match.awayCrest} name={match.awayTeam} />
+        <span className="flex-1 text-sm font-medium truncate text-right">{displayTeamName(match.awayTeam)}</span>
+        <Flag crest={match.awayCrest} name={displayTeamName(match.awayTeam)} />
       </Link>
 
       {prediction !== undefined && (

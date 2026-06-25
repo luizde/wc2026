@@ -144,6 +144,41 @@ describe('syncIfStale', () => {
     expect(upsertCall.away_score).toBe(1)
   })
 
+  it('stores TBD knockout teams as empty strings (not null) so the row persists and updates in place', async () => {
+    const staleTime = new Date(0).toISOString()
+    const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })
+    const existingChain = makeMockChain({ data: null, error: null })
+    const upsertChain = makeMockChain({ data: { id: 'match-uuid' }, error: null })
+    const metaUpsertChain = makeMockChain({ data: null, error: null })
+
+    mockFrom
+      .mockReturnValueOnce(metaChain as never)
+      .mockReturnValueOnce(existingChain as never)
+      .mockReturnValueOnce(upsertChain as never)
+      .mockReturnValueOnce(metaUpsertChain as never)
+
+    mockFetch.mockResolvedValue([{
+      id: 99,
+      utcDate: '2026-06-28T19:00:00Z',
+      status: 'TIMED',
+      stage: 'LAST_32',
+      group: null,
+      matchday: null,
+      homeTeam: { name: null, crest: null },
+      awayTeam: { name: null, crest: null },
+      score: { fullTime: { home: null, away: null } },
+    }])
+
+    await syncIfStale()
+
+    const [payload, options] = upsertChain.upsert.mock.calls[0]
+    expect(payload.home_team).toBe('')
+    expect(payload.away_team).toBe('')
+    // Keyed on external_id so a later sync with resolved names updates the same
+    // row rather than inserting a duplicate.
+    expect(options).toEqual({ onConflict: 'external_id' })
+  })
+
   it('skips upsert when match is already FINISHED in DB but API has no scores yet', async () => {
     const staleTime = new Date(0).toISOString()
     const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })

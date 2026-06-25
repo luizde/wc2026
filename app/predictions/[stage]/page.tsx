@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { syncIfStale } from '@/lib/sync'
+import { computePhaseDeadline } from '@/lib/scoring'
 import { RoundTabs } from '@/components/predictions/round-tabs'
 import { PredictionForm, MatchForForm } from '@/components/predictions/prediction-form'
 
@@ -10,8 +11,8 @@ export const dynamic = 'force-dynamic'
 
 const STAGE_MAP: Record<string, string> = {
   'group-stage': 'GROUP_STAGE',
-  'round-of-32': 'ROUND_OF_32',
-  'round-of-16': 'ROUND_OF_16',
+  'round-of-32': 'LAST_32',
+  'round-of-16': 'LAST_16',
   'quarter-finals': 'QUARTER_FINALS',
   'semi-finals': 'SEMI_FINALS',
   'third-place': 'THIRD_PLACE',
@@ -51,13 +52,15 @@ export default async function PredictionsPage({
     (predictions ?? []).map((p) => [p.match_id, { home: p.home_score, away: p.away_score }])
   )
 
-  const now = new Date()
-  const minKickoff = (matches ?? []).reduce<Date | null>((min, m) => {
-    const k = new Date(m.kickoff_utc)
-    return min === null || k < min ? k : min
-  }, null)
-  const phaseDeadline = minKickoff ? new Date(minKickoff.getTime() - 60 * 60 * 1000) : new Date(0)
-  const phaseIsLocked = now >= phaseDeadline
+  // Deadline is computed over every match in the stage (including TBD ones,
+  // which are filtered out of `matches` above) so it matches the server and
+  // doesn't drift when the earliest match resolves last.
+  const { data: stageKickoffs } = await db
+    .from('matches')
+    .select('kickoff_utc')
+    .eq('stage', dbStage)
+  const phaseDeadline = computePhaseDeadline((stageKickoffs ?? []).map((m) => m.kickoff_utc))
+  const phaseIsLocked = new Date() >= phaseDeadline
 
   const formMatches: MatchForForm[] = (matches ?? []).map((m) => ({
     id: m.id,
