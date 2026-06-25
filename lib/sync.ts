@@ -66,10 +66,13 @@ async function runSync(): Promise<void> {
       .upsert(
         {
           external_id: match.id,
-          home_team: match.homeTeam.name,
-          away_team: match.awayTeam.name,
-          home_crest: match.homeTeam.crest ?? null,
-          away_crest: match.awayTeam.crest ?? null,
+          // Knockout fixtures arrive with TBD (null) teams. Store '' so the
+          // NOT NULL row persists; a later sync upserts the resolved name onto
+          // the same external_id rather than creating a new record.
+          home_team: match.homeTeam?.name ?? '',
+          away_team: match.awayTeam?.name ?? '',
+          home_crest: match.homeTeam?.crest ?? null,
+          away_crest: match.awayTeam?.crest ?? null,
           stage: match.stage,
           group_name: match.group ?? null,
           matchday: match.matchday ?? null,

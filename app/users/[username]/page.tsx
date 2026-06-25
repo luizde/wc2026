@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
-  ROUND_OF_32: 'Round of 32',
-  ROUND_OF_16: 'Round of 16',
+  LAST_32: 'Round of 32',
+  LAST_16: 'Round of 16',
   QUARTER_FINALS: 'Quarterfinals',
   SEMI_FINALS: 'Semifinals',
   THIRD_PLACE: 'Third Place',

@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic'
 
 const STAGE_MAP: Record<string, string> = {
   'group-stage': 'GROUP_STAGE',
-  'round-of-32': 'ROUND_OF_32',
-  'round-of-16': 'ROUND_OF_16',
+  'round-of-32': 'LAST_32',
+  'round-of-16': 'LAST_16',
   'quarter-finals': 'QUARTER_FINALS',
   'semi-finals': 'SEMI_FINALS',
   'third-place': 'THIRD_PLACE',

@@ -27,7 +27,7 @@ export async function submitPredictionsAction(
 
   const { data: submittedMatches } = await db
     .from('matches')
-    .select('id, stage')
+    .select('id, stage, home_team, away_team')
     .in('id', matchIds)
 
   const stages = [...new Set((submittedMatches ?? []).map((m) => m.stage))]
@@ -48,14 +48,20 @@ export async function submitPredictionsAction(
     phaseDeadlines.set(stage, new Date(minKickoff.getTime() - 60 * 60 * 1000))
   }
 
-  const stageForMatch = new Map((submittedMatches ?? []).map((m) => [m.id, m.stage]))
+  const matchById = new Map((submittedMatches ?? []).map((m) => [m.id, m]))
   const now = new Date()
   const valid: PredictionInput[] = []
   const skipped: string[] = []
 
   for (const input of inputs) {
-    const stage = stageForMatch.get(input.matchId)
-    const phaseDeadline = stage ? phaseDeadlines.get(stage) : undefined
+    const match = matchById.get(input.matchId)
+    // Reject matches whose teams aren't resolved yet (knockout fixtures arrive
+    // with TBD sides). A prediction is only valid once both teams are known.
+    if (!match || !match.home_team || !match.away_team) {
+      skipped.push(input.matchId)
+      continue
+    }
+    const phaseDeadline = phaseDeadlines.get(match.stage)
     if (!phaseDeadline || now >= phaseDeadline) {
       skipped.push(input.matchId)
     } else {

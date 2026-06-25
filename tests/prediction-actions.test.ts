@@ -34,12 +34,15 @@ const FUTURE_KICKOFF = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
 const PAST_KICKOFF = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
 function mockTwoQueries(
-  stageData: { id: string; stage: string }[],
+  stageData: { id: string; stage: string; home_team?: string; away_team?: string }[],
   kickoffData: { stage: string; kickoff_utc: string }[]
 ) {
+  // Default to resolved teams so existing deadline-focused tests stay valid;
+  // tests exercising TBD locking pass home_team/away_team explicitly.
+  const withTeams = stageData.map((m) => ({ home_team: 'Home', away_team: 'Away', ...m }))
   const stageChain = {
     select: vi.fn().mockReturnThis(),
-    in: vi.fn().mockResolvedValue({ data: stageData, error: null }),
+    in: vi.fn().mockResolvedValue({ data: withTeams, error: null }),
   }
   const kickoffChain = {
     select: vi.fn().mockReturnThis(),
@@ -64,6 +67,20 @@ describe('submitPredictionsAction', () => {
     mockTwoQueries(
       [{ id: 'match-1', stage: 'GROUP_STAGE' }],
       [{ stage: 'GROUP_STAGE', kickoff_utc: PAST_KICKOFF }]
+    )
+
+    const result = await submitPredictionsAction([
+      { matchId: 'match-1', homeScore: 1, awayScore: 0 },
+    ])
+    expect(result.skipped).toContain('match-1')
+    expect(result.saved).toBe(0)
+  })
+
+  it('rejects predictions for a match with a TBD team, even when the phase is open', async () => {
+    mockGetSession.mockResolvedValue({ userId: 'user-1', isAdmin: false })
+    mockTwoQueries(
+      [{ id: 'match-1', stage: 'LAST_32', home_team: 'Brazil', away_team: '' }],
+      [{ stage: 'LAST_32', kickoff_utc: FUTURE_KICKOFF }]
     )
 
     const result = await submitPredictionsAction([
