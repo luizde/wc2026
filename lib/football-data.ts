@@ -5,7 +5,13 @@ export interface FDTeam {
 }
 
 export interface FDScore {
+  winner: string | null
+  duration: string // 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT'
   fullTime: { home: number | null; away: number | null }
+  // Only present when duration !== 'REGULAR'
+  regularTime?: { home: number | null; away: number | null }
+  extraTime?: { home: number | null; away: number | null }
+  penalties?: { home: number | null; away: number | null }
 }
 
 export interface FDMatch {
