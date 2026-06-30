@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { displayTeamName } from '@/lib/teams'
+import { getMatchScoreDisplay } from '@/lib/match-display'
 
 export interface PredictionData {
   homeScore: number
@@ -17,6 +18,11 @@ export interface MatchRowData {
   status: string
   homeScore: number | null
   awayScore: number | null
+  homeScoreEt: number | null
+  awayScoreEt: number | null
+  homeScorePens: number | null
+  awayScorePens: number | null
+  scoreDuration: string | null
   deadlineUtc: string
 }
 
@@ -47,6 +53,15 @@ export function MatchRow({
 }) {
   const isFinished = match.status === 'FINISHED' && match.homeScore !== null && match.awayScore !== null
   const isLive = match.status === 'IN_PLAY' || match.status === 'LIVE' || match.status === 'PAUSED'
+  const scoreDisplay = isFinished ? getMatchScoreDisplay({
+    homeScore: match.homeScore,
+    awayScore: match.awayScore,
+    homeScoreEt: match.homeScoreEt,
+    awayScoreEt: match.awayScoreEt,
+    homeScorePens: match.homeScorePens,
+    awayScorePens: match.awayScorePens,
+    scoreDuration: match.scoreDuration,
+  }) : null
 
   return (
     <div className="border-b border-gray-800/50">
@@ -57,11 +72,21 @@ export function MatchRow({
         <Flag crest={match.homeCrest} name={displayTeamName(match.homeTeam)} />
         <span className="flex-1 text-sm font-medium truncate">{displayTeamName(match.homeTeam)}</span>
 
-        <div className="flex flex-col items-center min-w-[64px]">
-          {isFinished ? (
-            <span className="text-base font-bold tabular-nums">
-              {match.homeScore} – {match.awayScore}
-            </span>
+        <div className="flex flex-col items-center min-w-[72px]">
+          {isFinished && scoreDisplay ? (
+            <>
+              <span className="text-base font-bold tabular-nums">
+                {scoreDisplay.displayHome} – {scoreDisplay.displayAway}
+                {scoreDisplay.hasEtGoals && (
+                  <span className="text-xs font-normal text-gray-500 ml-0.5">*</span>
+                )}
+              </span>
+              {scoreDisplay.pensHome !== null && (
+                <span className="text-[10px] text-gray-500 tabular-nums leading-none">
+                  ({scoreDisplay.pensHome}-{scoreDisplay.pensAway} P)
+                </span>
+              )}
+            </>
           ) : isLive ? (
             <span className="text-xs font-bold text-green-400 animate-pulse">LIVE</span>
           ) : (
@@ -72,7 +97,7 @@ export function MatchRow({
               isFinished ? 'text-gray-600' : isLive ? 'text-green-600' : 'text-gray-700'
             }`}
           >
-            {isFinished ? 'FT' : isLive ? '●' : 'CT'}
+            {isFinished ? (scoreDisplay?.label ?? 'FT') : isLive ? '●' : 'CT'}
           </span>
         </div>
 

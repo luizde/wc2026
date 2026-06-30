@@ -25,7 +25,7 @@ export default async function MatchesPage() {
 
   const { data: matches } = await db
     .from('matches')
-    .select('id, home_team, away_team, home_crest, away_crest, kickoff_utc, deadline_utc, status, home_score, away_score, stage, group_name')
+    .select('id, home_team, away_team, home_crest, away_crest, kickoff_utc, deadline_utc, status, home_score, away_score, home_score_et, away_score_et, home_score_pens, away_score_pens, score_duration, stage, group_name')
     .order('kickoff_utc', { ascending: true })
 
   let predictionMap = new Map<string, PredictionData>()
@@ -54,6 +54,11 @@ export default async function MatchesPage() {
     status: m.status,
     homeScore: m.home_score,
     awayScore: m.away_score,
+    homeScoreEt: m.home_score_et ?? null,
+    awayScoreEt: m.away_score_et ?? null,
+    homeScorePens: m.home_score_pens ?? null,
+    awayScorePens: m.away_score_pens ?? null,
+    scoreDuration: m.score_duration ?? null,
     deadlineUtc: m.deadline_utc,
   })
 

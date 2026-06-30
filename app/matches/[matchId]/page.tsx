@@ -6,6 +6,7 @@ import { syncIfStale } from '@/lib/sync'
 import { MatchComparison, UserPrediction } from '@/components/matches/match-detail'
 import { displayTeamName } from '@/lib/teams'
 import { computePhaseDeadline } from '@/lib/scoring'
+import { getMatchScoreDisplay } from '@/lib/match-display'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,11 +98,40 @@ export default async function MatchDetailPage({
           {match.home_crest && (
             <img src={match.home_crest} alt={match.home_team} className="w-10 h-10 object-contain" />
           )}
-          <div className="text-2xl font-bold tabular-nums">
-            {match.status === 'FINISHED' && match.home_score !== null && match.away_score !== null
-              ? `${match.home_score} – ${match.away_score}`
-              : '– : –'}
-          </div>
+          {(() => {
+            const isFinished = match.status === 'FINISHED' && match.home_score !== null && match.away_score !== null
+            const sd = isFinished ? getMatchScoreDisplay({
+              homeScore: match.home_score,
+              awayScore: match.away_score,
+              homeScoreEt: match.home_score_et ?? null,
+              awayScoreEt: match.away_score_et ?? null,
+              homeScorePens: match.home_score_pens ?? null,
+              awayScorePens: match.away_score_pens ?? null,
+              scoreDuration: match.score_duration ?? null,
+            }) : null
+            return (
+              <div className="text-center">
+                <div className="text-2xl font-bold tabular-nums">
+                  {sd ? (
+                    <>
+                      {sd.displayHome} – {sd.displayAway}
+                      {sd.hasEtGoals && <span className="text-base font-normal text-gray-400 ml-0.5">*</span>}
+                    </>
+                  ) : '– : –'}
+                </div>
+                {sd?.pensHome !== null && sd !== null && (
+                  <p className="text-sm text-gray-400 mt-0.5">
+                    {sd.pensHome}–{sd.pensAway} on penalties
+                  </p>
+                )}
+                {sd?.hasEtGoals && (
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    * 90-min result: {sd.regularHome}–{sd.regularAway}
+                  </p>
+                )}
+              </div>
+            )
+          })()}
           {match.away_crest && (
             <img src={match.away_crest} alt={match.away_team} className="w-10 h-10 object-contain" />
           )}

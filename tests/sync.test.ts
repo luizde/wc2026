@@ -98,7 +98,7 @@ describe('syncIfStale', () => {
       matchday: 1,
       homeTeam: { name: 'Mexico', crest: null },
       awayTeam: { name: 'South Africa', crest: null },
-      score: { fullTime: { home: null, away: null } },
+      score: { winner: null, duration: 'REGULAR', fullTime: { home: null, away: null } },
     }])
 
     await syncIfStale()
@@ -133,7 +133,7 @@ describe('syncIfStale', () => {
       matchday: 1,
       homeTeam: { name: 'Mexico', crest: null },
       awayTeam: { name: 'South Africa', crest: null },
-      score: { fullTime: { home: 2, away: 1 } },
+      score: { winner: 'HOME_TEAM', duration: 'REGULAR', fullTime: { home: 2, away: 1 } },
     }])
 
     await syncIfStale()
@@ -166,7 +166,7 @@ describe('syncIfStale', () => {
       matchday: null,
       homeTeam: { name: null, crest: null },
       awayTeam: { name: null, crest: null },
-      score: { fullTime: { home: null, away: null } },
+      score: { winner: null, duration: 'REGULAR', fullTime: { home: null, away: null } },
     }])
 
     await syncIfStale()
@@ -199,12 +199,63 @@ describe('syncIfStale', () => {
       matchday: 1,
       homeTeam: { name: 'Mexico', crest: null },
       awayTeam: { name: 'South Africa', crest: null },
-      score: { fullTime: { home: null, away: null } },
+      score: { winner: null, duration: 'REGULAR', fullTime: { home: null, away: null } },
     }])
 
     await syncIfStale()
 
     // The matches upsert should NOT have been called — skip preserves admin override
     expect(existingChain.upsert).not.toHaveBeenCalled()
+  })
+
+  it('uses regularTime (not fullTime) for scoring when a game goes to penalties', async () => {
+    const staleTime = new Date(0).toISOString()
+    const metaChain = makeMockChain({ data: { last_synced_at: staleTime }, error: null })
+    // Simulate Germany vs Paraguay stored with the old (wrong) fullTime score
+    const existingChain = makeMockChain({
+      data: { id: 'match-uuid', status: 'FINISHED', home_score: 4, away_score: 5 },
+      error: null,
+    })
+    const upsertChain = makeMockChain({ data: { id: 'match-uuid' }, error: null })
+    const predsChain = makeMockChain({ data: [], error: null })
+    const metaUpsertChain = makeMockChain({ data: null, error: null })
+
+    mockFrom
+      .mockReturnValueOnce(metaChain as never)
+      .mockReturnValueOnce(existingChain as never)
+      .mockReturnValueOnce(upsertChain as never)
+      .mockReturnValueOnce(predsChain as never)
+      .mockReturnValueOnce(metaUpsertChain as never)
+
+    mockFetch.mockResolvedValue([{
+      id: 1,
+      utcDate: '2026-06-11T19:00:00Z',
+      status: 'FINISHED',
+      stage: 'LAST_32',
+      group: null,
+      matchday: null,
+      homeTeam: { name: 'Germany', crest: null },
+      awayTeam: { name: 'Paraguay', crest: null },
+      score: {
+        winner: 'AWAY_TEAM',
+        duration: 'PENALTY_SHOOTOUT',
+        fullTime: { home: 4, away: 5 },        // includes penalty goals — wrong for scoring
+        regularTime: { home: 1, away: 1 },      // 90-min score — correct for scoring
+        extraTime: { home: 0, away: 0 },
+        penalties: { home: 3, away: 4 },
+      },
+    }])
+
+    await syncIfStale()
+
+    const upsertCall = upsertChain.upsert.mock.calls[0][0]
+    // home_score / away_score must be the 90-min result, not fullTime
+    expect(upsertCall.home_score).toBe(1)
+    expect(upsertCall.away_score).toBe(1)
+    expect(upsertCall.home_score_et).toBe(0)
+    expect(upsertCall.away_score_et).toBe(0)
+    expect(upsertCall.home_score_pens).toBe(3)
+    expect(upsertCall.away_score_pens).toBe(4)
+    expect(upsertCall.score_duration).toBe('PENALTY_SHOOTOUT')
   })
 })

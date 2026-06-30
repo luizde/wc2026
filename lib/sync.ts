@@ -37,13 +37,23 @@ async function runSync(): Promise<void> {
 
     const { data: existing } = await db
       .from('matches')
-      .select('id, status')
+      .select('id, status, home_score, away_score')
       .eq('external_id', match.id)
       .single()
 
-    const homeScore = match.score.fullTime.home
-    const awayScore = match.score.fullTime.away
-    const scoresReady = homeScore !== null && awayScore !== null
+    // Use regularTime (90-min score) for prediction scoring. For regular-duration
+    // matches the API omits regularTime, so fall back to fullTime which is correct
+    // for those. For EXTRA_TIME / PENALTY_SHOOTOUT matches fullTime adds ET/penalty
+    // goals to the total, making it wrong for scoring.
+    const regularHome = match.score.regularTime?.home ?? match.score.fullTime.home
+    const regularAway = match.score.regularTime?.away ?? match.score.fullTime.away
+    const scoresReady = regularHome !== null && regularAway !== null
+
+    const etHome = match.score.extraTime?.home ?? null
+    const etAway = match.score.extraTime?.away ?? null
+    const pensHome = match.score.penalties?.home ?? null
+    const pensAway = match.score.penalties?.away ?? null
+    const scoreDuration = match.score.duration ?? 'REGULAR'
 
     // football-data.org marks matches FINISHED before populating scores.
     // Hold the status at IN_PLAY until scores are available so the UI
@@ -60,6 +70,12 @@ async function runSync(): Promise<void> {
     if (wasFinished && !scoresReady) continue
 
     const isNowFinished = effectiveStatus === 'FINISHED'
+
+    // Detect when the stored 90-min score differs from what the API now reports.
+    // This handles games that were stored with the wrong fullTime value (which
+    // included ET/penalty goals) before this fix was deployed.
+    const scoresDiffer =
+      existing?.home_score !== regularHome || existing?.away_score !== regularAway
 
     const { data: upserted } = await db
       .from('matches')
@@ -79,8 +95,13 @@ async function runSync(): Promise<void> {
           kickoff_utc: kickoffUtc.toISOString(),
           deadline_utc: deadlineUtc.toISOString(),
           status: effectiveStatus,
-          home_score: homeScore,
-          away_score: awayScore,
+          home_score: regularHome,
+          away_score: regularAway,
+          home_score_et: etHome,
+          away_score_et: etAway,
+          home_score_pens: pensHome,
+          away_score_pens: pensAway,
+          score_duration: scoreDuration,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'external_id' }
@@ -88,10 +109,12 @@ async function runSync(): Promise<void> {
       .select('id')
       .single()
 
-    if (!wasFinished && isNowFinished && upserted && scoresReady) {
+    // Rescore when the match just finished, or when a previously-wrong score
+    // (e.g. stored from fullTime including ET/pens) is being corrected.
+    if (isNowFinished && (!wasFinished || scoresDiffer) && upserted && scoresReady) {
       await scorePredictions(upserted.id, {
-        home: homeScore!,
-        away: awayScore!,
+        home: regularHome!,
+        away: regularAway!,
       })
     }
   }
